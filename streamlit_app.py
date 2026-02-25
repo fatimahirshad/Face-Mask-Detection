@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 # Load ONNX model
-model = YOLO("best.onnx")
+model = YOLO("best.onnx", task="detect")
 
 st.title("Face Mask Detection")
 

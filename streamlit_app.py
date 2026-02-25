@@ -41,6 +41,7 @@ if option == "Upload Image":
             source=image_np,
             conf=0.25,
             imgsz=640
+            device="cpu"
         )
 
         boxes = results[0].boxes

@@ -152,7 +152,6 @@ class MaskDetector(VideoTransformerBase):
             color,
             2
         )
-
         return img
 
 webrtc_streamer(

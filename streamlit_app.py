@@ -92,9 +92,15 @@ class MaskDetector(VideoTransformerBase):
 
         return annotated
 
+from streamlit_webrtc import RTCConfiguration
+
+RTC_CONFIGURATION = RTCConfiguration(
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
 
 webrtc_streamer(
     key="mask-detection",
     video_processor_factory=MaskDetector,
+    rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={"video": True, "audio": False},
 )

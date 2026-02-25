@@ -4,6 +4,7 @@ import onnxruntime as ort
 from PIL import Image
 import cv2
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import os
 
 # -----------------------------
 # Page Config
@@ -61,12 +62,9 @@ st.write("Upload an image or use your webcam to detect whether a person is weari
 # -----------------------------
 # Load ONNX Model
 # -----------------------------
-session = ort.InferenceSession("model/best.onnx")
-
-input_name = session.get_inputs()[0].name
-
-IMG_SIZE = 224
-
+ # Absolute path to ONNX file
+model_path = os.path.join(os.path.dirname(__file__), "best.onnx")
+session = ort.InferenceSession(model_path)
 
 # -----------------------------
 # Preprocess Image

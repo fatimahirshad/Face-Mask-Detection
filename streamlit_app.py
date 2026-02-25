@@ -1,23 +1,24 @@
 import streamlit as st
 from ultralytics import YOLO
-import cv2
 import numpy as np
 from PIL import Image
 
-# Load model
-model = YOLO("best.pt")
+# Load ONNX model
+model = YOLO("best.onnx")
 
-st.title("Face Mask Detection App")
+st.title("Face Mask Detection")
 
-uploaded_file = st.file_uploader("Upload an Image", type=["jpg","jpeg","png"])
+uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
 
     image = Image.open(uploaded_file)
     image_np = np.array(image)
 
-    results = model(image_np)
+    # Run inference
+    results = model.predict(image_np)
 
+    # Draw results
     annotated = results[0].plot()
 
     st.image(annotated, caption="Prediction", use_column_width=True)

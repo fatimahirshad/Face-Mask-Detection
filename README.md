@@ -25,6 +25,13 @@ Classes:
 - with_mask
 - without_mask
 
+## Technologies used
+
+- Python
+- YOLOv8
+- OpenCV
+- Streamlit
+
 ## Training Results
 
 Precision: 0.994  

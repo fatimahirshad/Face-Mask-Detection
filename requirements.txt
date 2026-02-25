@@ -1,8 +1,7 @@
 streamlit
-ultralytics
-onnxruntime
+tensorflow
+numpy
+pillow
 opencv-python-headless
 streamlit-webrtc
 aiortc
-numpy
-pillow

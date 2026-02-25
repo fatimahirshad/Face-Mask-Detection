@@ -3,94 +3,98 @@ from ultralytics import YOLO
 import numpy as np
 from PIL import Image
 import cv2
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import av
 
-# -------------------------
-# Load Model
-# -------------------------
-model = YOLO("best.onnx", task="detect")
+# -----------------------------
+# Page Config
+# -----------------------------
+st.set_page_config(page_title="Face Mask Detection", layout="centered")
 
-# -------------------------
-# UI
-# -------------------------
-st.set_page_config(page_title="Face Mask Detector", layout="centered")
+# -----------------------------
+# Minimal UI Styling
+# -----------------------------
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(135deg,#f5f7fa,#c3cfe2);
+    }
 
-st.title("😷 Face Mask Detection")
-st.write("Detect whether a person is wearing a mask or not.")
+    h1 {
+        text-align:center;
+        color:#1f3c88;
+    }
 
-option = st.radio(
-    "Choose Detection Mode",
-    ["Upload Image", "Live Webcam"]
+    .upload-box {
+        padding:20px;
+        border-radius:10px;
+        background:white;
+        box-shadow:0px 4px 15px rgba(0,0,0,0.1);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
-# -------------------------
-# IMAGE UPLOAD
-# -------------------------
-if option == "Upload Image":
+st.title("😷 Face Mask Detection System")
 
-    uploaded_file = st.file_uploader(
-        "Upload an image",
-        type=["jpg", "jpeg", "png"]
+st.write("Upload an image or use your camera to detect whether a person is wearing a mask.")
+
+# -----------------------------
+# Load Model
+# -----------------------------
+model = YOLO("best.onnx", task="detect")
+
+# -----------------------------
+# IMAGE UPLOAD
+# -----------------------------
+st.subheader("📁 Upload Image")
+
+uploaded_file = st.file_uploader("", type=["jpg","jpeg","png"])
+
+if uploaded_file:
+
+    image = Image.open(uploaded_file).convert("RGB")
+    image_np = np.array(image)
+
+    results = model.predict(
+        source=image_np,
+        imgsz=640,
+        conf=0.4
     )
 
-    if uploaded_file:
+    annotated = results[0].plot()
 
-        image = Image.open(uploaded_file).convert("RGB")
-        image_np = np.array(image)
+    st.image(annotated, caption="Prediction", use_container_width=True)
 
-        results = model.predict(
-            source=image_np,
-            conf=0.25,
-            imgsz=640,
-            device="cpu"
-        )
+    for box in results[0].boxes:
+        label = model.names[int(box.cls)]
+        conf = float(box.conf)
 
-        boxes = results[0].boxes
-        annotated = results[0].plot()
+        st.write(f"**Prediction:** {label}")
+        st.write(f"**Confidence:** {conf:.2f}")
 
-        st.image(annotated, caption="Detection Result", use_container_width=True)
+# -----------------------------
+# CAMERA DETECTION
+# -----------------------------
+st.subheader("📷 Live Camera Detection")
 
-        if boxes is not None:
+class MaskDetector(VideoTransformerBase):
 
-            st.subheader("Predictions")
+    def transform(self, frame):
 
-            for box in boxes:
-                cls = int(box.cls[0])
-                conf = float(box.conf[0])
+        img = frame.to_ndarray(format="bgr24")
 
-                label = model.names[cls]
-
-                st.write(f"**{label}** — Confidence: `{conf:.2f}`")
-
-# -------------------------
-# LIVE WEBCAM
-# -------------------------
-elif option == "Live Webcam":
-
-    run = st.checkbox("Start Camera")
-
-    FRAME_WINDOW = st.image([])
-
-    camera = cv2.VideoCapture(0)
-
-    while run:
-
-        ret, frame = camera.read()
-
-        if not ret:
-            st.write("Camera not available")
-            break
-
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        results = model.predict(
-            source=frame_rgb,
-            conf=0.25,
-            imgsz=640
-        )
+        results = model.predict(img, imgsz=640, conf=0.4)
 
         annotated = results[0].plot()
 
-        FRAME_WINDOW.image(annotated)
+        return annotated
 
-    else:
-        camera.release()
+
+webrtc_streamer(
+    key="mask-detection",
+    video_processor_factory=MaskDetector,
+    media_stream_constraints={"video": True, "audio": False},
+)

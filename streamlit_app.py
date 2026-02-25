@@ -4,36 +4,92 @@ import numpy as np
 from PIL import Image
 import cv2
 
-# Load ONNX model explicitly as detection
+# -------------------------
+# Load Model
+# -------------------------
 model = YOLO("best.onnx", task="detect")
 
-st.title("Face Mask Detection")
+# -------------------------
+# UI
+# -------------------------
+st.set_page_config(page_title="Face Mask Detector", layout="centered")
 
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+st.title("😷 Face Mask Detection")
+st.write("Detect whether a person is wearing a mask or not.")
 
-if uploaded_file:
-    # Open and convert to RGB
-    image = Image.open(uploaded_file).convert("RGB")
-    image_np = np.array(image)
+option = st.radio(
+    "Choose Detection Mode",
+    ["Upload Image", "Live Webcam"]
+)
 
-    # Predict
-    results = model.predict(
-        source=image_np,
-        imgsz=640,
-        conf=0.25,
-        save=False,
-        show=False
+# -------------------------
+# IMAGE UPLOAD
+# -------------------------
+if option == "Upload Image":
+
+    uploaded_file = st.file_uploader(
+        "Upload an image",
+        type=["jpg", "jpeg", "png"]
     )
 
-    # Annotate image
-    annotated_img = results[0].plot()
-    st.image(annotated_img, caption="Prediction", use_column_width=True)
+    if uploaded_file:
 
-    # Show classes and confidence
-    st.write("### Detected Objects:")
-    if results[0].boxes is not None and len(results[0].boxes) > 0:
-        for box, cls, conf in zip(results[0].boxes.xyxy, results[0].boxes.cls, results[0].boxes.conf):
-            class_name = results[0].names[int(cls)]
-            st.write(f"- {class_name} (Confidence: {conf:.2f})")
+        image = Image.open(uploaded_file).convert("RGB")
+        image_np = np.array(image)
+
+        results = model.predict(
+            source=image_np,
+            conf=0.25,
+            imgsz=640
+        )
+
+        boxes = results[0].boxes
+        annotated = results[0].plot()
+
+        st.image(annotated, caption="Detection Result", use_container_width=True)
+
+        if boxes is not None:
+
+            st.subheader("Predictions")
+
+            for box in boxes:
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+
+                label = model.names[cls]
+
+                st.write(f"**{label}** — Confidence: `{conf:.2f}`")
+
+# -------------------------
+# LIVE WEBCAM
+# -------------------------
+elif option == "Live Webcam":
+
+    run = st.checkbox("Start Camera")
+
+    FRAME_WINDOW = st.image([])
+
+    camera = cv2.VideoCapture(0)
+
+    while run:
+
+        ret, frame = camera.read()
+
+        if not ret:
+            st.write("Camera not available")
+            break
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        results = model.predict(
+            source=frame_rgb,
+            conf=0.25,
+            imgsz=640
+        )
+
+        annotated = results[0].plot()
+
+        FRAME_WINDOW.image(annotated)
+
     else:
-        st.write("No faces detected.")
+        camera.release()

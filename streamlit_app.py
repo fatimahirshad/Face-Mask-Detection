@@ -1,8 +1,8 @@
 import streamlit as st
-import torch
-import torchvision.transforms as transforms
-from PIL import Image
 import numpy as np
+import onnxruntime as ort
+from PIL import Image
+import os
 
 # -----------------------------
 # Page Config
@@ -20,14 +20,14 @@ st.markdown("""
 <style>
 
 .stApp{
-background: linear-gradient(120deg,#fdfbfb,#ebedee);
+background: linear-gradient(120deg,#f5f7fa,#c3cfe2);
 }
 
 .title{
 text-align:center;
 font-size:40px;
 font-weight:700;
-color:#111827;
+color:#1f2937;
 }
 
 .subtitle{
@@ -64,39 +64,49 @@ font-weight:bold;
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='title'>😷 Face Mask Classifier</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Upload an image to check if a person is wearing a mask</div>", unsafe_allow_html=True)
+st.markdown("<div class='title'>😷 Face Mask Detection</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Upload an image to check if a mask is worn</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# Load PyTorch Model
+# Load ONNX Model
 # -----------------------------
-model = torch.load("best.onnx", map_location=torch.device("cpu"))
-model.eval()
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.onnx")
+
+session = ort.InferenceSession(MODEL_PATH)
+
+input_name = session.get_inputs()[0].name
+
+IMG_SIZE = 224
 
 # -----------------------------
-# Image Transform
+# Preprocess Image
 # -----------------------------
-transform = transforms.Compose([
-    transforms.Resize((224,224)),
-    transforms.ToTensor(),
-])
+def preprocess(image):
+
+    image = image.resize((IMG_SIZE, IMG_SIZE))
+
+    img = np.array(image).astype(np.float32) / 255.0
+
+    img = np.transpose(img, (2,0,1))
+
+    img = np.expand_dims(img, axis=0)
+
+    return img
+
 
 # -----------------------------
 # Prediction Function
 # -----------------------------
 def predict(image):
 
-    img = transform(image).unsqueeze(0)
+    img = preprocess(image)
 
-    with torch.no_grad():
-        output = model(img)
+    pred = session.run(None, {input_name: img})[0][0]
 
-    prob = torch.sigmoid(output)[0][0].item()
-
-    if prob > 0.5:
-        return "Without Mask", prob
+    if pred > 0.5:
+        return "Without Mask", float(pred)
     else:
-        return "With Mask", 1 - prob
+        return "With Mask", float(1 - pred)
 
 
 # -----------------------------

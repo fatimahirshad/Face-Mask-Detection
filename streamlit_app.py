@@ -1,4 +1,5 @@
 import streamlit as st
+import ultralytics
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np

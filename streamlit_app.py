@@ -1,7 +1,8 @@
 import streamlit as st
-import numpy as np
+import torch
+import torchvision.transforms as transforms
 from PIL import Image
-import tensorflow as tf
+import numpy as np
 
 # -----------------------------
 # Page Config
@@ -13,7 +14,7 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Custom UI Styling
+# UI Styling
 # -----------------------------
 st.markdown("""
 <style>
@@ -24,14 +25,13 @@ background: linear-gradient(120deg,#fdfbfb,#ebedee);
 
 .title{
 text-align:center;
-font-size:42px;
+font-size:40px;
 font-weight:700;
 color:#111827;
 }
 
 .subtitle{
 text-align:center;
-font-size:18px;
 color:#6b7280;
 margin-bottom:30px;
 }
@@ -43,7 +43,7 @@ border-radius:18px;
 box-shadow:0px 8px 20px rgba(0,0,0,0.08);
 }
 
-.result-mask{
+.mask{
 background:#22c55e;
 color:white;
 padding:10px;
@@ -52,7 +52,7 @@ text-align:center;
 font-weight:bold;
 }
 
-.result-nomask{
+.nomask{
 background:#ef4444;
 color:white;
 padding:10px;
@@ -65,46 +65,42 @@ font-weight:bold;
 """, unsafe_allow_html=True)
 
 st.markdown("<div class='title'>😷 Face Mask Classifier</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Upload an image to detect if a person is wearing a mask</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Upload an image to check if a person is wearing a mask</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# Load CNN Model
+# Load PyTorch Model
 # -----------------------------
-model = tf.keras.models.load_model("mask_model.h5")
-
-IMG_SIZE = 224
+model = torch.load("mask_model.pth", map_location=torch.device("cpu"))
+model.eval()
 
 # -----------------------------
-# Image Preprocessing
+# Image Transform
 # -----------------------------
-def preprocess(image):
-
-    image = image.resize((IMG_SIZE, IMG_SIZE))
-
-    img = np.array(image)/255.0
-
-    img = np.expand_dims(img, axis=0)
-
-    return img
-
+transform = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+])
 
 # -----------------------------
 # Prediction Function
 # -----------------------------
 def predict(image):
 
-    img = preprocess(image)
+    img = transform(image).unsqueeze(0)
 
-    prediction = model.predict(img)[0][0]
+    with torch.no_grad():
+        output = model(img)
 
-    if prediction > 0.5:
-        return "Without Mask", prediction
+    prob = torch.sigmoid(output)[0][0].item()
+
+    if prob > 0.5:
+        return "Without Mask", prob
     else:
-        return "With Mask", 1 - prediction
+        return "With Mask", 1 - prob
 
 
 # -----------------------------
-# Upload UI
+# Upload Section
 # -----------------------------
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
@@ -114,17 +110,17 @@ if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-    st.image(image, caption="Uploaded Image", use_container_width=True)
+    st.image(image, use_container_width=True)
 
-    label, confidence = predict(image)
+    label, conf = predict(image)
 
     if label == "With Mask":
-        st.markdown("<div class='result-mask'>✅ With Mask</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mask'>✅ With Mask</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div class='result-nomask'>❌ Without Mask</div>", unsafe_allow_html=True)
+        st.markdown("<div class='nomask'>❌ Without Mask</div>", unsafe_allow_html=True)
 
-    st.progress(float(confidence))
+    st.progress(conf)
 
-    st.write(f"Confidence: **{confidence:.2f}**")
+    st.write(f"Confidence: **{conf:.2f}**")
 
 st.markdown("</div>", unsafe_allow_html=True)

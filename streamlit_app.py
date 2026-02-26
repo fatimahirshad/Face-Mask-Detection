@@ -70,7 +70,7 @@ st.markdown("<div class='subtitle'>Upload an image to check if a person is weari
 # -----------------------------
 # Load PyTorch Model
 # -----------------------------
-model = torch.load("mask_model.pth", map_location=torch.device("cpu"))
+model = torch.load("best.onnx", map_location=torch.device("cpu"))
 model.eval()
 
 # -----------------------------

@@ -1,9 +1,8 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from tensorflow.keras.models import load_model
 import os
-
 
 # -----------------------------
 # Page Config
@@ -75,33 +74,38 @@ st.markdown("<div class='subtitle'>Upload an image to detect if a person is wear
 # -----------------------------
 # Load Model
 # -----------------------------
-
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "face_mask_detector_model.h5")
 
+if not os.path.exists(MODEL_PATH):
+    st.error(f"Model file not found at {MODEL_PATH}")
+    st.stop()
+
 model = load_model(MODEL_PATH, compile=False)
+
+IMG_SIZE = 224
 
 # -----------------------------
 # Preprocess Image
 # -----------------------------
-def preprocess(image):
-
+def preprocess(uploaded_file):
+    try:
+        image = Image.open(uploaded_file).convert("RGB")
+    except UnidentifiedImageError:
+        st.error("Unable to open this file. Please upload a valid image.")
+        return None
     image = image.resize((IMG_SIZE, IMG_SIZE))
-
     img = np.array(image) / 255.0
-
     img = np.expand_dims(img, axis=0)
-
     return img
 
 # -----------------------------
-# Prediction
+# Predict Function
 # -----------------------------
-def predict(image):
-
-    img = preprocess(image)
-
+def predict(uploaded_file):
+    img = preprocess(uploaded_file)
+    if img is None:
+        return None, None
     prediction = model.predict(img)[0][0]
-
     if prediction > 0.5:
         return "Without Mask", float(prediction)
     else:
@@ -118,21 +122,21 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
+    label, confidence = predict(uploaded_file)
+    if label is None:
+        st.stop()  # stop execution if file invalid
 
-    image = Image.open(uploaded_file).convert("RGB")
+    # Show uploaded image
+    st.image(Image.open(uploaded_file), use_container_width=True)
 
-    st.image(image, use_container_width=True)
-
-    with st.spinner("Analyzing image..."):
-        label, confidence = predict(image)
-
+    # Show prediction
     if label == "With Mask":
         st.markdown("<div class='mask'>✅ With Mask</div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='nomask'>❌ Without Mask</div>", unsafe_allow_html=True)
 
+    # Confidence bar
     st.progress(confidence)
-
     st.write(f"Confidence: **{confidence:.2f}**")
 
 st.markdown("</div>", unsafe_allow_html=True)

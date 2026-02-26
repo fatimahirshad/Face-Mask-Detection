@@ -1,14 +1,15 @@
 import streamlit as st
-import numpy as np
-import onnxruntime as ort
+from ultralytics import YOLO
 from PIL import Image
+import numpy as np
+import cv2
 import os
 
 # -----------------------------
 # Page Config
 # -----------------------------
 st.set_page_config(
-    page_title="Face Mask Classifier",
+    page_title="Face Mask Detection",
     page_icon="😷",
     layout="centered"
 )
@@ -20,7 +21,7 @@ st.markdown("""
 <style>
 
 .stApp{
-background: linear-gradient(120deg,#f5f7fa,#c3cfe2);
+background: linear-gradient(135deg,#eef2f3,#8e9eab);
 }
 
 .title{
@@ -32,7 +33,7 @@ color:#1f2937;
 
 .subtitle{
 text-align:center;
-color:#6b7280;
+color:#4b5563;
 margin-bottom:30px;
 }
 
@@ -40,74 +41,21 @@ margin-bottom:30px;
 background:white;
 padding:30px;
 border-radius:18px;
-box-shadow:0px 8px 20px rgba(0,0,0,0.08);
-}
-
-.mask{
-background:#22c55e;
-color:white;
-padding:10px;
-border-radius:10px;
-text-align:center;
-font-weight:bold;
-}
-
-.nomask{
-background:#ef4444;
-color:white;
-padding:10px;
-border-radius:10px;
-text-align:center;
-font-weight:bold;
+box-shadow:0px 10px 25px rgba(0,0,0,0.1);
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("<div class='title'>😷 Face Mask Detection</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Upload an image to check if a mask is worn</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Upload an image to detect face mask</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# Load ONNX Model
+# Load Model
 # -----------------------------
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.onnx")
 
-session = ort.InferenceSession(MODEL_PATH)
-
-input_name = session.get_inputs()[0].name
-
-IMG_SIZE = 224
-
-# -----------------------------
-# Preprocess Image
-# -----------------------------
-def preprocess(image):
-
-    image = image.resize((IMG_SIZE, IMG_SIZE))
-
-    img = np.array(image).astype(np.float32) / 255.0
-
-    img = np.transpose(img, (2,0,1))
-
-    img = np.expand_dims(img, axis=0)
-
-    return img
-
-
-# -----------------------------
-# Prediction Function
-# -----------------------------
-def predict(image):
-
-    img = preprocess(image)
-
-    pred = session.run(None, {input_name: img})[0][0]
-
-    if pred > 0.5:
-        return "Without Mask", float(pred)
-    else:
-        return "With Mask", float(1 - pred)
-
+model = YOLO(MODEL_PATH, task="detect")
 
 # -----------------------------
 # Upload Section
@@ -120,17 +68,29 @@ if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-    st.image(image, use_container_width=True)
+    img_array = np.array(image)
 
-    label, conf = predict(image)
+    # Run detection
+    results = model.predict(source=img_array, imgsz=640, conf=0.25)
 
-    if label == "With Mask":
-        st.markdown("<div class='mask'>✅ With Mask</div>", unsafe_allow_html=True)
+    # Annotated image
+    annotated = results[0].plot()
+
+    st.image(annotated, use_container_width=True)
+
+    # Show detected labels
+    st.subheader("Detection Results")
+
+    if len(results[0].boxes) == 0:
+        st.write("No faces detected")
+
     else:
-        st.markdown("<div class='nomask'>❌ Without Mask</div>", unsafe_allow_html=True)
-
-    st.progress(conf)
-
-    st.write(f"Confidence: **{conf:.2f}**")
+        for box, cls, conf in zip(
+            results[0].boxes.xyxy,
+            results[0].boxes.cls,
+            results[0].boxes.conf
+        ):
+            class_name = results[0].names[int(cls)]
+            st.write(f"**{class_name}** — Confidence: {conf:.2f}")
 
 st.markdown("</div>", unsafe_allow_html=True)

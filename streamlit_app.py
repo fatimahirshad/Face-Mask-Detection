@@ -2,7 +2,6 @@ import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
-import cv2
 import os
 
 # -----------------------------
@@ -21,76 +20,102 @@ st.markdown("""
 <style>
 
 .stApp{
-background: linear-gradient(135deg,#eef2f3,#8e9eab);
+background: linear-gradient(135deg,#667eea,#764ba2);
+color:white;
 }
 
-.title{
+.main-title{
 text-align:center;
-font-size:40px;
+font-size:45px;
 font-weight:700;
-color:#1f2937;
+margin-bottom:5px;
 }
 
 .subtitle{
 text-align:center;
-color:#4b5563;
+font-size:18px;
 margin-bottom:30px;
+opacity:0.9;
 }
 
 .card{
 background:white;
-padding:30px;
+padding:25px;
 border-radius:18px;
-box-shadow:0px 10px 25px rgba(0,0,0,0.1);
+box-shadow:0px 10px 25px rgba(0,0,0,0.15);
+color:black;
+}
+
+.result-card{
+padding:15px;
+border-radius:12px;
+margin-top:10px;
+background:#f3f4f6;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='title'>😷 Face Mask Detection</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Upload an image to detect face mask</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>😷 Face Mask Detection</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>AI model detecting mask usage from images</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Load Model
 # -----------------------------
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.onnx")
-
 model = YOLO(MODEL_PATH, task="detect")
 
 # -----------------------------
-# Upload Section
+# Upload Card
 # -----------------------------
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Image", type=["jpg","jpeg","png"])
+uploaded_file = st.file_uploader(
+    "Upload an Image",
+    type=["jpg","jpeg","png"]
+)
 
 if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
-
     img_array = np.array(image)
 
-    # Run detection
-    results = model.predict(source=img_array, imgsz=640, conf=0.25)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # Annotated image
+    with st.spinner("Analyzing image..."):
+
+        results = model.predict(
+            source=img_array,
+            imgsz=640,
+            conf=0.25
+        )
+
     annotated = results[0].plot()
 
-    st.image(annotated, use_container_width=True)
+    st.image(annotated, caption="Detection Result", use_container_width=True)
 
-    # Show detected labels
-    st.subheader("Detection Results")
+    st.subheader("Detection Summary")
 
-    if len(results[0].boxes) == 0:
-        st.write("No faces detected")
+    boxes = results[0].boxes
+
+    if len(boxes) == 0:
+        st.warning("No faces detected")
 
     else:
-        for box, cls, conf in zip(
-            results[0].boxes.xyxy,
-            results[0].boxes.cls,
-            results[0].boxes.conf
-        ):
-            class_name = results[0].names[int(cls)]
-            st.write(f"**{class_name}** — Confidence: {conf:.2f}")
+
+        for cls, conf in zip(boxes.cls, boxes.conf):
+
+            label = results[0].names[int(cls)]
+            confidence = float(conf)
+
+            st.markdown("<div class='result-card'>", unsafe_allow_html=True)
+
+            st.write(f"**Class:** {label}")
+
+            st.progress(confidence)
+
+            st.write(f"Confidence: {confidence:.2f}")
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)

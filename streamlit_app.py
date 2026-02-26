@@ -4,6 +4,7 @@ from PIL import Image
 from tensorflow.keras.models import load_model
 import os
 
+
 # -----------------------------
 # Page Config
 # -----------------------------
@@ -74,11 +75,10 @@ st.markdown("<div class='subtitle'>Upload an image to detect if a person is wear
 # -----------------------------
 # Load Model
 # -----------------------------
+
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "face_mask_detector_model.h5")
 
-model = load_model(MODEL_PATH)
-
-IMG_SIZE = 224
+model = load_model(MODEL_PATH, compile=False)
 
 # -----------------------------
 # Preprocess Image

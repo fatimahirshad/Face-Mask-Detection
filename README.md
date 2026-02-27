@@ -14,7 +14,8 @@ This project implements a **face mask detection system** using a Convolutional N
 The model was trained on a dataset containing images of:
 
 - With Mask  
-- Without Mask  
+- Without Mask
+- [Dataset Link](https://www.kaggle.com/datasets/belsonraja/face-mask-dataset-with-and-without-mask)  
 
 ## Model
 
